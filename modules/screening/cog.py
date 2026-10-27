@@ -378,7 +378,7 @@ class ScreeningCog(commands.Cog):
 
         parts = content.split()
         first_part = parts[0].lower()
-        if first_part in ('scan', 'signal', 'coinlist', 'help', 'start', 'stop', 'session', 'health'):
+        if first_part in ('scan', 'signal', 'coinlist', 'help', 'start', 'stop', 'session', 'health', 'forex'):
             await self.send_error(
                 message,
                 f"⚠️ Perintah `${first_part}` tidak menggunakan prefix `$`. Gunakan `!{first_part}` atau `/help`."
@@ -788,10 +788,19 @@ class ScreeningCog(commands.Cog):
         embed.add_field(
             name="🌊 **Perintah VWAP Scanner (Live Table)**",
             value=(
-                "🔹 **`!start`** — Mulai live-updating tabel VWAP di channel ini sesuai interval config\n"
-                "🔹 **`!stop`** — Hentikan live-updating scanner di channel ini\n"
-                "🔹 **`!session`** — Cek sesi trading aktif (Sydney, Tokyo, London, New York) & trigger manual refresh\n"
-                "🔹 **`!health`** — Pantau status kesehatan dan update interval semua scanner aktif"
+                "🔹 **`!start vwap`** — Mulai live-updating tabel VWAP di channel ini sesuai interval config\n"
+                "🔹 **`!stop vwap`**  — Hentikan live-updating scanner di channel ini\n"
+                "🔹 **`!session`**   — Cek sesi trading aktif (Sydney, Tokyo, London, New York) & trigger manual refresh\n"
+                "🔹 **`!health`**    — Pantau status kesehatan dan update interval semua scanner aktif"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="📰 **Perintah Forex Factory Notifier**",
+            value=(
+                "🔹 **`!start forex`** — Mulai notifier kalender ekonomi Forex Factory di channel ini\n"
+                "🔹 **`!stop forex`**  — Hentikan notifier Forex Factory di channel ini"
             ),
             inline=False
         )
@@ -814,7 +823,8 @@ class ScreeningCog(commands.Cog):
                 "• `$BTC` → Sinyal Bybit 1h\n"
                 "• `$SOL 4h long binance` → Sinyal Long Binance 4h\n"
                 "• `!scan BTC ETH SOL` → Scan 3 koin terbaik\n"
-                "• `!start` → Jalankan tabel VWAP real-time di channel"
+                "• `!start vwap` → Jalankan tabel VWAP real-time di channel\n"
+                "• `!start forex` → Aktifkan notifikasi Forex Factory harian"
             ),
             inline=False
         )

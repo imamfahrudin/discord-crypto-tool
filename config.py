@@ -92,3 +92,43 @@ EMBED_FOOTER_TEXT = os.environ.get("EMBED_FOOTER_TEXT", "")
 RATE_LIMIT_MIN_INTERVAL = float(os.environ.get("RATE_LIMIT_MIN_INTERVAL", "1.0"))
 RATE_LIMIT_MAX_BURST = int(os.environ.get("RATE_LIMIT_MAX_BURST", "3"))
 UPDATE_STAGGER_DELAY = float(os.environ.get("UPDATE_STAGGER_DELAY", "0.5"))
+
+# ---------------------------------------------------------------------------
+# Forex Factory Notifier Module Settings
+# ---------------------------------------------------------------------------
+
+# Max upcoming events shown below today's section
+FOREX_MAX_UPCOMING = int(os.environ.get("FOREX_MAX_UPCOMING", "5"))
+
+# Minimum impact level: 'high', 'medium', 'low', or 'all'
+FOREX_MIN_IMPACT = os.environ.get("FOREX_MIN_IMPACT", "high").lower()
+
+# Comma-separated currency filter, e.g. 'USD,EUR,GBP'. Leave blank for all.
+_raw_forex_currencies = os.environ.get("FOREX_CURRENCIES", "")
+FOREX_CURRENCIES = [c.strip().upper() for c in _raw_forex_currencies.split(",") if c.strip()]
+
+# Timezone for date grouping and daily scheduling (pytz name)
+FOREX_TIMEZONE = os.environ.get("FOREX_TIMEZONE", "Asia/Jakarta")
+
+# Hour (0-23) in FOREX_TIMEZONE at which the daily post fires
+FOREX_SCHEDULE_HOUR = int(os.environ.get("FOREX_SCHEDULE_HOUR", "7"))
+
+# Minute (0-59) for the daily post
+FOREX_SCHEDULE_MINUTE = int(os.environ.get("FOREX_SCHEDULE_MINUTE", "0"))
+
+# Embed display settings
+FOREX_EMBED_TITLE = os.environ.get("FOREX_EMBED_TITLE", "Forex Alerts")
+FOREX_SERVER_NAME = os.environ.get("FOREX_SERVER_NAME", "Forex Notifier")
+FOREX_EMBED_COLOR = int(os.environ.get("FOREX_EMBED_COLOR", "FF4500"), 16)
+FOREX_MAX_EVENT_TITLE_LENGTH = int(os.environ.get("FOREX_MAX_EVENT_TITLE_LENGTH", "30"))
+
+# HTTP fetch settings
+FOREX_MAX_RETRIES = int(os.environ.get("FOREX_MAX_RETRIES", "3"))
+FOREX_INITIAL_SLEEP_SECONDS = int(os.environ.get("FOREX_INITIAL_SLEEP_SECONDS", "5"))
+FOREX_REQUEST_TIMEOUT = int(os.environ.get("FOREX_REQUEST_TIMEOUT", "10"))
+FOREX_USER_AGENT = os.environ.get(
+    "FOREX_USER_AGENT",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/91.0.4472.124 Safari/537.36",
+)

@@ -1,6 +1,14 @@
 """
 VWAP Cog for discord-crypto-tool.
-Manages continuous live-updating VWAP scanner tables, session monitoring, state persistence, and !start/!stop/!session/!health.
+Manages continuous live-updating VWAP scanner tables, session monitoring, state persistence.
+
+Commands (routed via the central dispatcher):
+    !start vwap  — start live-updating VWAP tables in this channel
+    !stop vwap   — stop  live-updating VWAP tables in this channel
+
+Direct commands registered here:
+    !session     — view active trading session and trigger refresh
+    !health      — inspect health of all active scanners
 """
 
 import discord
@@ -407,10 +415,10 @@ class VwapCog(commands.Cog):
                 await asyncio.sleep(UPDATE_STAGGER_DELAY)
 
     # -----------------------------------------------------------------------
-    # Commands: !start, !stop, !session, !health
+    # Public API — called by the central dispatcher cog
     # -----------------------------------------------------------------------
-    @commands.command(name="start")
-    async def start_command(self, ctx):
+
+    async def start_in_channel(self, ctx: commands.Context):
         """Start continuous live-updating VWAP tables in this channel."""
         channel_id = ctx.channel.id
         intervals = parse_intervals(REFRESH_INTERVAL)
@@ -452,15 +460,14 @@ class VwapCog(commands.Cog):
                 self.channel_states[channel_id][interval]['task'] = task
 
             intervals_str = ', '.join(format_interval(i) for i in intervals)
-            logger.info(f"✅ Scanner started in #{ctx.channel.name} with intervals: {intervals_str}")
+            logger.info(f"✅ VWAP scanner started in #{ctx.channel.name} with intervals: {intervals_str}")
 
         except Exception as e:
-            logger.error(f"Error in start_command: {e}")
-            await ctx.send(f"❌ Error starting scanner: {str(e)[:100]}")
+            logger.error(f"Error in start_in_channel: {e}")
+            await ctx.send(f"❌ Error starting VWAP scanner: {str(e)[:100]}")
 
-    @commands.command(name="stop")
-    async def stop_command(self, ctx):
-        """Stop all live-updating scanners in this channel."""
+    async def stop_in_channel(self, ctx: commands.Context):
+        """Stop all live-updating VWAP scanners in this channel."""
         channel_id = ctx.channel.id
         if channel_id not in self.channel_states or not self.channel_states[channel_id]:
             await ctx.message.add_reaction("⚠️")
@@ -492,8 +499,8 @@ class VwapCog(commands.Cog):
             await ctx.send(f"⏹️ VWAP scanner dihentikan ({len(intervals_to_stop)} tabel).")
 
         except Exception as e:
-            logger.error(f"Error in stop_command: {e}")
-            await ctx.send(f"❌ Error stopping scanner: {str(e)[:100]}")
+            logger.error(f"Error in stop_in_channel: {e}")
+            await ctx.send(f"❌ Error stopping VWAP scanner: {str(e)[:100]}")
 
     @commands.command(name="session")
     async def session_command(self, ctx):

@@ -1,6 +1,6 @@
 """
 Unified Discord Crypto Tool - Main Entrypoint
-Runs both Crypto Screening Tool and VWAP Scanner as a single lightweight process.
+Runs Crypto Screening, VWAP Scanner, and Forex Factory Notifier as a single lightweight process.
 """
 
 import asyncio
@@ -22,8 +22,8 @@ logger = logging.getLogger("crypto_tool.main")
 
 def main():
     logger.info("==================================================")
-    logger.info("   💎 UNIFIED DISCORD CRYPTO TOOL v1.0.0          ")
-    logger.info("   Consolidating Screening & VWAP Scanner Bots    ")
+    logger.info("   💎 UNIFIED DISCORD CRYPTO TOOL v2.0.0          ")
+    logger.info("   Screening + VWAP Scanner + Forex Notifier      ")
     logger.info("==================================================")
 
     if not DISCORD_TOKEN or DISCORD_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":

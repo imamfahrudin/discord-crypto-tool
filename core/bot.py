@@ -35,10 +35,14 @@ class CryptoBot(commands.Bot):
         logger.info("Initializing database...")
         init_database()
 
-        # List of modular extensions to load
+        # List of modular extensions to load.
+        # NOTE: 'modules.dispatcher' MUST be last so it can find the other
+        # cogs via bot.get_cog() in its routing table.
         modules = [
             "modules.screening",
             "modules.vwap",
+            "modules.forex",
+            "modules.dispatcher",   # owns !start / !stop — load last
         ]
 
         logger.info("Loading bot modules...")
@@ -70,7 +74,7 @@ class CryptoBot(commands.Bot):
                 except Exception as e:
                     logger.error(f"❌ Error in {cog_name}.on_bot_ready: {e}")
 
-        logger.info("🚀 All systems operational! Ready to process commands.")
+        logger.info("🚀 All systems operational! Screening, VWAP, and Forex modules ready.")
 
     async def on_message(self, message: discord.Message):
         """
