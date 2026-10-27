@@ -24,6 +24,11 @@ from config import (
     FOREX_SCHEDULE_HOUR,
     FOREX_SCHEDULE_MINUTE,
 )
+from core.database import (
+    save_forex_channel_state,
+    load_forex_channel_states,
+    remove_forex_channel_state,
+)
 from .fetcher import fetch_all_news, build_embed_dict
 
 logger = logging.getLogger("crypto_tool.forex.cog")
@@ -39,6 +44,10 @@ class ForexCog(commands.Cog):
             'task':    asyncio.Task | None,
         }
 
+    Running channels are also written to ``data/bot_states.db`` (table
+    ``forex_channel_states``) and restored after a restart, the same way
+    the VWAP scanner remembers its channels.
+
     No shared global state — stopping one channel never touches another.
     """
 
@@ -47,10 +56,54 @@ class ForexCog(commands.Cog):
         # channel_id -> {'running': bool, 'task': Task | None}
         self.channel_states: dict[int, dict] = {}
 
+    async def on_bot_ready(self):
+        """Called by core/bot.py once the gateway connection is open."""
+        await self.restore_channel_states()
+
     def cog_unload(self):
-        """Cancel all background tasks when the cog is unloaded."""
-        for cid, state in list(self.channel_states.items()):
+        """Cancel background tasks. Persisted rows stay so a restart can resume."""
+        for cid in list(self.channel_states.keys()):
             self._cancel_channel(cid)
+
+    async def restore_channel_states(self):
+        """Resume Forex notifiers that were running before the last shutdown."""
+        saved_states = load_forex_channel_states()
+        if not saved_states:
+            logger.info("No previous Forex channel states to restore")
+            return
+
+        logger.info(f"Restoring Forex notifier in {len(saved_states)} channel(s)...")
+
+        for channel_id, state_data in saved_states.items():
+            try:
+                channel = self.bot.get_channel(channel_id)
+                if channel is None and state_data.get("guild_id"):
+                    guild = self.bot.get_guild(state_data["guild_id"])
+                    if guild:
+                        channel = guild.get_channel(channel_id)
+                if channel is None:
+                    try:
+                        channel = await self.bot.fetch_channel(channel_id)
+                    except (discord.NotFound, discord.Forbidden):
+                        channel = None
+                    except discord.HTTPException as exc:
+                        logger.warning(f"Forex: could not fetch channel {channel_id}, keeping saved state: {exc}")
+                        continue
+
+                if channel is None:
+                    logger.warning(f"Forex: channel {channel_id} not accessible, removing saved state")
+                    remove_forex_channel_state(channel_id)
+                    continue
+
+                if self.channel_states.get(channel_id, {}).get("running"):
+                    continue
+
+                self.channel_states[channel_id] = {"running": True, "task": None}
+                task = asyncio.create_task(self._scheduler_loop(channel_id, immediate=False))
+                self.channel_states[channel_id]["task"] = task
+                logger.info(f"Restored Forex notifier in #{getattr(channel, 'name', channel_id)}")
+            except Exception as exc:
+                logger.error(f"Failed to restore Forex channel {channel_id}: {exc}\n{traceback.format_exc()}")
 
     # -----------------------------------------------------------------------
     # Internal helpers
@@ -91,25 +144,36 @@ class ForexCog(commands.Cog):
             logger.error(f"Failed to post forex update to #{channel.name}: {exc}\n{traceback.format_exc()}")
             return False
 
-    async def _scheduler_loop(self, channel_id: int):
+    async def _scheduler_loop(self, channel_id: int, *, immediate: bool = True):
         """
         Background task that:
-          1. Posts an immediate update on start.
+          1. Posts an immediate update on a fresh start.
           2. Waits until the next configured daily time and re-posts every day.
+
+        Restored channels pass ``immediate=False`` so a restart does not
+        repost the calendar before the next scheduled time.
         """
         channel = self.bot.get_channel(channel_id)
         if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(channel_id)
+            except (discord.NotFound, discord.Forbidden):
+                channel = None
+        if channel is None:
             logger.error(f"Forex: channel {channel_id} not found — task exiting.")
             self._cancel_channel(channel_id)
+            remove_forex_channel_state(channel_id)
             return
 
         state = self.channel_states.get(channel_id)
         if not state:
             return
 
-        # Immediate first post
-        logger.info(f"Forex: immediate post → #{channel.name}")
-        await self._post_forex_update(channel)
+        if immediate:
+            logger.info(f"Forex: immediate post → #{channel.name}")
+            await self._post_forex_update(channel)
+        else:
+            logger.info(f"Forex: resumed #{channel.name} — waiting for the next scheduled post")
 
         tz_obj = pytz.timezone(FOREX_TIMEZONE)
 
@@ -164,6 +228,14 @@ class ForexCog(commands.Cog):
             return
 
         self.channel_states[channel_id] = {"running": True, "task": None}
+        guild = ctx.guild
+        save_forex_channel_state(
+            channel_id,
+            True,
+            guild.name if guild else "DM",
+            ctx.channel.name,
+            guild.id if guild else None,
+        )
         task = asyncio.create_task(self._scheduler_loop(channel_id))
         self.channel_states[channel_id]["task"] = task
 
@@ -172,6 +244,7 @@ class ForexCog(commands.Cog):
         await ctx.send(
             f"✅ **Forex Notifier** started in this channel.\n"
             f"📅 Daily posts at `{FOREX_SCHEDULE_HOUR:02d}:{FOREX_SCHEDULE_MINUTE:02d}` **{FOREX_TIMEZONE}**.\n"
+            f"💾 This channel is saved and will resume after a restart.\n"
             f"📤 Fetching and posting the first update now…"
         )
 
@@ -184,6 +257,7 @@ class ForexCog(commands.Cog):
             return
 
         self._cancel_channel(channel_id)
+        remove_forex_channel_state(channel_id)
         await ctx.message.add_reaction("✅")
         await ctx.send("⏹️ **Forex Notifier** stopped in this channel.")
         logger.info(f"Forex notifier stopped in #{ctx.channel.name} (id={channel_id})")

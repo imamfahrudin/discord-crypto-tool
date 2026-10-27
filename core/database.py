@@ -73,6 +73,21 @@ def init_database():
         except Exception as e:
             logger.warning(f"previous_rankings migration check: {e}")
 
+        # 3. forex_channel_states — channels where the Forex notifier is running.
+        # Kept separate from channel_states so VWAP restore does not treat these
+        # rows as live scanner messages.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS forex_channel_states (
+                channel_id INTEGER PRIMARY KEY,
+                guild_id INTEGER,
+                running BOOLEAN NOT NULL DEFAULT 1,
+                server_name TEXT,
+                channel_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         logger.info(f"Database initialized at {DB_PATH}")
@@ -118,6 +133,54 @@ def load_channel_states():
             'guild_id': gid
         }
     return states
+
+
+def save_forex_channel_state(channel_id, running, server_name=None, channel_name=None, guild_id=None):
+    """Save or update a Forex notifier channel."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO forex_channel_states
+            (channel_id, guild_id, running, server_name, channel_name, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (channel_id, guild_id, running, server_name, channel_name))
+        conn.commit()
+        conn.close()
+
+
+def load_forex_channel_states():
+    """Load channels where the Forex notifier was left running."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT channel_id, guild_id, running, server_name, channel_name
+            FROM forex_channel_states
+            WHERE running = 1
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+
+    states = {}
+    for channel_id, guild_id, running, server_name, channel_name in rows:
+        states[channel_id] = {
+            'guild_id': guild_id,
+            'running': bool(running),
+            'server_name': server_name,
+            'channel_name': channel_name,
+        }
+    return states
+
+
+def remove_forex_channel_state(channel_id):
+    """Remove a Forex notifier channel from persistence."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM forex_channel_states WHERE channel_id = ?', (channel_id,))
+        conn.commit()
+        conn.close()
 
 
 def remove_channel_state(channel_id, interval=None):
