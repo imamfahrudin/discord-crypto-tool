@@ -42,6 +42,7 @@ class CryptoBot(commands.Bot):
             "modules.screening",
             "modules.vwap",
             "modules.forex",
+            "modules.degen",
             "modules.dispatcher",   # owns !start / !stop — load last
         ]
 
@@ -74,7 +75,7 @@ class CryptoBot(commands.Bot):
                 except Exception as e:
                     logger.error(f"❌ Error in {cog_name}.on_bot_ready: {e}")
 
-        logger.info("🚀 All systems operational! Screening, VWAP, and Forex modules ready.")
+        logger.info("🚀 All systems operational! Screening, VWAP, Forex, and Degen modules ready.")
 
     async def on_message(self, message: discord.Message):
         """
@@ -99,6 +100,13 @@ class CryptoBot(commands.Bot):
             except Exception:
                 pass
             await self.process_commands(message)
+            return
+
+        # 3. Degen token lookup. A pasted contract address is not a prefix command.
+        #    $ quick-signals and ! commands are handled above and are not scanned.
+        degen_cog = self.get_cog("DegenCog")
+        if degen_cog and hasattr(degen_cog, "handle_token_query"):
+            await degen_cog.handle_token_query(message)
 
     async def on_command_error(self, ctx, error):
         """Handle unhandled command errors gracefully."""

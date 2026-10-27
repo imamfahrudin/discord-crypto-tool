@@ -132,3 +132,19 @@ FOREX_USER_AGENT = os.environ.get(
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/91.0.4472.124 Safari/537.36",
 )
+
+# ---------------------------------------------------------------------------
+# Degen Token Lookup Module Settings
+# ---------------------------------------------------------------------------
+# Dex embed accent color as a decimal integer (9442302 = #901B6E).
+# The standalone degen bot read this same PRIMARY_COLOR value.
+PRIMARY_COLOR = int(os.environ.get("PRIMARY_COLOR", "9442302"))
+
+# Footer on degen token and price-comparison embeds.
+FOOTER_TEXT = os.environ.get("FOOTER_TEXT", "DO YOUR OWN RESEARCH-ALWAYS!")
+
+# Hourly candles requested from GeckoTerminal (1–1000). 168 = 7 days of 1h bars.
+CHART_TIMEFRAME_HOURS = max(1, min(1000, int(os.environ.get("CHART_TIMEFRAME_HOURS", "168"))))
+
+# In-flight degen lookups (HTTP + chart). Separate from SIGNAL_CONCURRENCY.
+DEGEN_CONCURRENCY = max(1, int(os.environ.get("DEGEN_CONCURRENCY", "2")))

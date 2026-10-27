@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG) and continuous live-updating multi-session VWAP ranking tables into a single high-performance, low-RAM process.
+An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG), continuous live-updating multi-session VWAP ranking tables, Forex Factory calendar alerts, and on-demand DEX token lookup into a single high-performance, low-RAM process.
 
 ---
 
@@ -16,6 +16,8 @@ Running two separate Python Discord bots consumes redundant system memory (two P
 **Discord Crypto Tool** consolidates:
 - **`discord-crypto-screening-tool`** (Signals, scalp scanner, chart generation, multi-exchange support)
 - **`discord-crypto-vwap-tool`** (Automated multi-session VWAP scanner tables with live Discord message editing)
+- **`discord-forexfactory-notifier`** (Daily Forex Factory calendar posts)
+- **`discord-crypto-degen-tool`** (Paste a contract address for DexScreener data and a GeckoTerminal chart)
 
 ### Key Benefits
 - **50%+ Lower Memory Footprint**: Single Python process, single gateway connection, capped glibc malloc arenas (`MALLOC_ARENA_MAX=2`), shared image generator memory trimming (`malloc_trim`).
@@ -61,6 +63,22 @@ discord-crypto-tool/
 │   │   ├── gate_data.py      # Gate.io USDT futures data adapter
 │   │   └── views.py          # Interactive pagination views for !coinlist
 │   │
+│   ├── forex/                # Module: Forex Factory daily calendar
+│   │   ├── __init__.py
+│   │   ├── cog.py            # !start forex / !stop forex, per-channel schedule
+│   │   └── fetcher.py
+│   │
+│   ├── degen/                # Module: pasted contract-address lookup
+│   │   ├── __init__.py       # Cog loader setup
+│   │   ├── cog.py            # Address listener and price buttons (no prefix commands)
+│   │   ├── api.py            # DexScreener, GeckoTerminal, CoinGecko
+│   │   ├── chart.py          # mplfinance candlestick chart
+│   │   ├── embeds.py         # Token and price-comparison embeds
+│   │   └── utils.py
+│   │
+│   ├── dispatcher/           # !start / !stop router (vwap, forex) — loaded last
+│   │   └── cog.py
+│   │
 │   └── vwap/                 # Module: Multi-Session VWAP Scanner
 │       ├── __init__.py       # Cog loader setup
 │       ├── cog.py            # Commands: !start, !stop, !session, !health & background loops
@@ -84,7 +102,8 @@ discord-crypto-tool/
 │
 ├── tests/                    # Offline verification test suite
 │   ├── test_screening.py     # Tests chart & signal generation without Discord
-│   └── test_vwap.py          # Tests table image generation without Discord
+│   ├── test_vwap.py          # Tests table image generation without Discord
+│   └── test_degen.py         # Formatting, button ids, and degen chart without Discord
 │
 ├── data/                     # SQLite database storage (persisted across restarts)
 └── cache/                    # Exchange pairs disk cache
@@ -164,6 +183,10 @@ discord-crypto-tool/
 | `ENABLE_WEBSOCKET_PRICES` | `false` | Real-time Bybit WebSocket ticker stream (keep false to minimize RAM/CPU) |
 | `TOP_N` | `15` | Top N symbols displayed in the VWAP ranking table |
 | `SESSION_WEIGHTS` | `{"Sydney": 0.6, "Tokyo": 0.8, "London": 1.0, "New York": 1.2}` | Multiplier weights per trading session |
+| `PRIMARY_COLOR` | `9442302` | Degen embed color as a decimal integer (`#901B6E`) |
+| `FOOTER_TEXT` | `DO YOUR OWN RESEARCH-ALWAYS!` | Footer on degen token embeds |
+| `CHART_TIMEFRAME_HOURS` | `168` | Hourly candles requested for the degen chart (max 1000) |
+| `DEGEN_CONCURRENCY` | `2` | Simultaneous degen lookups. Independent of `SIGNAL_CONCURRENCY` |
 
 ---
 
@@ -187,10 +210,29 @@ discord-crypto-tool/
 
 | Command | Example | Description |
 |---|---|---|
-| `!start` | `!start` | Starts continuous live-updating VWAP ranking table in the channel |
-| `!stop` | `!stop` | Stops the scanner in the current channel and removes from database |
+| `!start vwap` | `!start vwap` | Starts continuous live-updating VWAP ranking table in the channel |
+| `!stop vwap` | `!stop vwap` | Stops the scanner in the current channel and removes it from the database |
 | `!session` | `!session` | Displays active session, weights, upcoming sessions, and triggers manual refresh |
 | `!health` | `!health` | Inspects real-time health and update latency of all active channel tables |
+
+### 3. Forex Factory Commands
+
+| Command | Example | Description |
+|---|---|---|
+| `!start forex` | `!start forex` | Posts the daily Forex Factory calendar in this channel |
+| `!stop forex` | `!stop forex` | Stops the Forex notifier in this channel |
+
+### 4. Degen Token Lookup
+
+Degen has no prefix command. Paste a contract address in a normal message (not a `$` or `!` command).
+
+| Trigger | Example | Description |
+|---|---|---|
+| Contract address | `0x` + 40 hex, or a 32–44 character Solana address | Replies with DexScreener market data and a 1h GeckoTerminal chart |
+| **Check Current Price** | Button on the token reply | Public price comparison for the requester; private for everyone else |
+| **Refresh Price** | Button on the comparison | Requester only. Refreshes the comparison |
+| **Delete** | Button on the comparison | Requester only. Deletes the comparison message |
+| **View on DexScreener** | Link button | Opens the pair on DexScreener |
 
 ---
 
@@ -202,6 +244,7 @@ If you previously ran `discord-crypto-screening-tool` and `discord-crypto-vwap-t
 2. **Discord Application Intents**: Make sure **Message Content Intent** is toggled ON in the [Discord Developer Portal](https://discord.com/developers/applications).
 3. **Old Channels**: When running `!start`, the bot will begin updating in your current channel and record the state in `data/bot_states.db`.
 4. **Zero Conflicts**: All prefixes (`$`, `!`) and commands work exactly as they did before.
+5. **Degen bot**: Stop the old Node process. Its `TOKEN` is not read anymore — this project uses `DISCORD_TOKEN` only. Copy `PRIMARY_COLOR`, `FOOTER_TEXT`, and `CHART_TIMEFRAME_HOURS` into this `.env` if you customized them. Paste contract addresses in a normal message; `$` and `!` messages stay with screening, VWAP, and Forex.
 
 ---
 
@@ -239,15 +282,20 @@ Adding new modules (e.g., Arbitrage, News Summarizer, On-chain alerts) is modula
    ```
 
 4. **Register in `core/bot.py`**:
-   Add `"modules.my_feature"` to the `modules` list inside `setup_hook()`:
+   Add `"modules.my_feature"` to the `modules` list inside `setup_hook()`, **before** `modules.dispatcher`:
    ```python
    modules = [
        "modules.screening",
        "modules.vwap",
-       "modules.my_feature",  # <--- your new module
+       "modules.forex",
+       "modules.degen",
+       "modules.my_feature",  # before the dispatcher
+       "modules.dispatcher",  # owns !start / !stop — keep last
    ]
    ```
-   The bot will automatically discover, load, and sync slash commands on startup!
+   If the feature is started and stopped per channel, add a row to `FEATURE_MAP` in `modules/dispatcher/cog.py` and keep its saved channels in a table of its own (see `forex_channel_states`). Do not reuse `channel_states`, which belongs to VWAP.
+
+   The bot loads the extension, and slash commands sync on startup.
 
 ---
 

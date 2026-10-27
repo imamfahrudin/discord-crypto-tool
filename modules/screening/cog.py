@@ -768,7 +768,7 @@ class ScreeningCog(commands.Cog):
         """Unified complete help command for all features."""
         embed = discord.Embed(
             title="🤖💎 **CRYPTO TOOL — PANDUAN LENGKAP**",
-            description="Platform Bot Terpadu untuk **Signal Screening** & **Live VWAP Multi-Session Scanner**!",
+            description="Platform Bot Terpadu untuk **Signal Screening**, **VWAP**, **Forex**, dan **Degen token lookup**!",
             color=0x00FF88
         )
 
@@ -806,6 +806,17 @@ class ScreeningCog(commands.Cog):
         )
 
         embed.add_field(
+            name="🧪 **Degen Token Lookup**",
+            value=(
+                "🔹 **Tempel contract address** — Balasan otomatis data DexScreener + chart (tanpa prefix)\n"
+                "🔹 Contoh EVM: `0x` + 40 hex. Contoh Solana: alamat base58 32–44 karakter\n"
+                "🔹 Tombol **Check Current Price**, **Refresh Price**, dan **Delete** ada di balasan itu\n"
+                "🔹 `$` dan `!` tetap milik Screening, VWAP, dan Forex — tidak dipindai sebagai contract"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
             name="⏰ **Timeframe yang Didukung**",
             value="`1m` `3m` `5m` `15m` `30m` `1h` `2h` `4h` `6h` `1d` `1w`",
             inline=True
@@ -824,7 +835,8 @@ class ScreeningCog(commands.Cog):
                 "• `$SOL 4h long binance` → Sinyal Long Binance 4h\n"
                 "• `!scan BTC ETH SOL` → Scan 3 koin terbaik\n"
                 "• `!start vwap` → Jalankan tabel VWAP real-time di channel\n"
-                "• `!start forex` → Aktifkan notifikasi Forex Factory harian"
+                "• `!start forex` → Aktifkan notifikasi Forex Factory harian\n"
+                "• `0xabc...` → Lookup token degen (DexScreener + chart)"
             ),
             inline=False
         )
