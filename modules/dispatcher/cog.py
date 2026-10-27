@@ -15,6 +15,8 @@ Usage examples:
     !start unknown — shows usage hint (unknown feature)
 """
 
+from __future__ import annotations
+
 import logging
 
 import discord

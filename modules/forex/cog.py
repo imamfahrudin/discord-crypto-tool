@@ -7,6 +7,8 @@ Commands (routed via the central dispatcher):
     !stop forex   — stop Forex Factory alerts in this channel
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import traceback

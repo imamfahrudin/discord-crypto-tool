@@ -3,6 +3,8 @@ Forex Factory data fetcher — pure data layer, no Discord dependencies.
 Fetches and parses the weekly economic calendar XML feed from Forex Factory.
 """
 
+from __future__ import annotations
+
 import time
 import calendar
 import logging
