@@ -46,7 +46,7 @@ from .indicators.atr import atr
 from .indicators.stochastic import stochastic
 from .engine.scanner_engine import scan
 from .output.table import render_table
-from .table_generator import generate_table_image
+from .table_generator import generate_table_image, parse_table_data
 from .bybit.rest import get_futures_symbols, get_session_candles
 from .bybit.websocket import start_ws, prices
 
@@ -68,8 +68,8 @@ class VwapCog(commands.Cog):
             'data': None,
             'last_updated': 0,
             'last_successful_update': 0,
-            'updating': False
         }
+        self._cache_lock = asyncio.Lock()
         self.force_fresh_data = True
 
     async def on_bot_ready(self):
@@ -181,42 +181,47 @@ class VwapCog(commands.Cog):
             ranked = scan(market, session_name, weight)
             return render_table(ranked[:TOP_N], session_name, weight)
 
+    def _scanner_data_ready(self, data) -> bool:
+        """True only when the scan text contains actual symbol rows."""
+        return bool(data) and bool(parse_table_data(data))
+
     async def update_scanner_cache(self):
-        """Update scanner cache in background."""
-        if self.scanner_cache['updating']:
-            return
-        self.scanner_cache['updating'] = True
-        try:
-            data = await self.get_scanner_data_raw()
-            if data:
-                self.scanner_cache['data'] = data
-                self.scanner_cache['last_updated'] = asyncio.get_running_loop().time()
-                self.scanner_cache['last_successful_update'] = asyncio.get_running_loop().time()
-                logger.info("✅ VWAP scanner cache updated successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to update VWAP scanner cache: {e}")
-        finally:
-            self.scanner_cache['updating'] = False
+        """Fetch scanner data once, and keep the previous cache when the scan is empty."""
+        async with self._cache_lock:
+            now = asyncio.get_running_loop().time()
+            cache_fresh = (
+                self._scanner_data_ready(self.scanner_cache['data'])
+                and (now - self.scanner_cache['last_updated']) < 30
+            )
+            if cache_fresh and not self.force_fresh_data:
+                return
+
+            try:
+                data = await self.get_scanner_data_raw()
+            except Exception as e:
+                logger.error(f"❌ Failed to update VWAP scanner cache: {e}")
+                return
+
+            if not self._scanner_data_ready(data):
+                logger.warning("VWAP scan returned no rows; keeping the previous table")
+                return
+
+            self.scanner_cache['data'] = data
+            self.scanner_cache['last_updated'] = asyncio.get_running_loop().time()
+            self.scanner_cache['last_successful_update'] = asyncio.get_running_loop().time()
+            self.force_fresh_data = False
+            logger.info("✅ VWAP scanner cache updated successfully")
 
     async def get_scanner_data(self):
-        """Return fresh cached scanner data or trigger update."""
-        current_time = asyncio.get_running_loop().time()
-        cache_fresh = self.scanner_cache['data'] and (current_time - self.scanner_cache['last_updated']) < 30
-
-        if not self.force_fresh_data and cache_fresh:
-            wib = (datetime.now(timezone.utc) + timedelta(hours=7)).strftime('%H:%M:%S')
-            utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
-            return self.scanner_cache['data'], f"{wib} WIB | {utc} UTC"
-
+        """Return scanner rows, or (None, None) until a real scan has finished."""
         await self.update_scanner_cache()
-        self.force_fresh_data = False
+        data = self.scanner_cache['data']
+        if not self._scanner_data_ready(data):
+            return None, None
 
-        if self.scanner_cache['data']:
-            wib = (datetime.now(timezone.utc) + timedelta(hours=7)).strftime('%H:%M:%S')
-            utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
-            return self.scanner_cache['data'], f"{wib} WIB | {utc} UTC"
-        else:
-            return "⚠️ Scanner data not available. Please try again shortly.", "N/A"
+        wib = (datetime.now(timezone.utc) + timedelta(hours=7)).strftime('%H:%M:%S')
+        utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
+        return data, f"{wib} WIB | {utc} UTC"
 
     async def cache_updater_loop(self):
         """Periodic background updater for scanner cache."""
@@ -301,6 +306,14 @@ class VwapCog(commands.Cog):
                self.channel_states[channel_id][interval]['running']):
             try:
                 scanner_data, last_updated = await self.get_scanner_data()
+                if not scanner_data:
+                    logger.info(
+                        f"VWAP data not ready for channel {channel_id} [{interval}s]; "
+                        "leaving the current message unchanged"
+                    )
+                    await asyncio.sleep(15)
+                    continue
+
                 session_name, weight = detect_session()
                 session_flag = get_session_flag(session_name)
                 next_session_name, next_session_time = get_next_session_info()
@@ -319,31 +332,38 @@ class VwapCog(commands.Cog):
                     next_update=next_update_str
                 )
 
-                if table_image:
-                    embed = discord.Embed(
-                        title=f"BYBIT FUTURES VWAP SCANNER — EVERY {interval_str.upper()}",
-                        description=(
-                            f"**Current Session:** {session_name} {session_flag}\n"
-                            f"**Weight:** {weight}\n"
-                            f"**Last Updated:** {last_updated}\n"
-                            f"**Next Update:** {next_update_str}\n"
-                            f"**Next Session:** {next_session_name} {next_session_flag} at {next_session_time}"
-                        ),
-                        color=discord.Color.blue()
+                if not table_image:
+                    logger.info(
+                        f"VWAP table image empty for channel {channel_id} [{interval}s]; "
+                        "leaving the current message unchanged"
                     )
+                    await asyncio.sleep(15)
+                    continue
 
-                    filename = f"vwap_scanner_{interval}s_{datetime.utcnow().strftime('%H%M%S')}.png"
-                    file = discord.File(table_image, filename=filename)
-                    embed.set_image(url=f"attachment://{filename}")
+                embed = discord.Embed(
+                    title=f"BYBIT FUTURES VWAP SCANNER — EVERY {interval_str.upper()}",
+                    description=(
+                        f"**Current Session:** {session_name} {session_flag}\n"
+                        f"**Weight:** {weight}\n"
+                        f"**Last Updated:** {last_updated}\n"
+                        f"**Next Update:** {next_update_str}\n"
+                        f"**Next Session:** {next_session_name} {next_session_flag} at {next_session_time}"
+                    ),
+                    color=discord.Color.blue()
+                )
 
-                    if EMBED_FOOTER_TEXT:
-                        embed.set_footer(text=EMBED_FOOTER_TEXT)
+                filename = f"vwap_scanner_{interval}s_{datetime.utcnow().strftime('%H%M%S')}.png"
+                file = discord.File(table_image, filename=filename)
+                embed.set_image(url=f"attachment://{filename}")
 
-                    message = self.channel_states[channel_id][interval]['message']
-                    await rate_limiter.acquire(message.id)
-                    await message.edit(embed=embed, attachments=[file])
-                    self.channel_states[channel_id][interval]['last_scheduled_update'] = datetime.now()
-                    consecutive_failures = 0
+                if EMBED_FOOTER_TEXT:
+                    embed.set_footer(text=EMBED_FOOTER_TEXT)
+
+                message = self.channel_states[channel_id][interval]['message']
+                await rate_limiter.acquire(message.id)
+                await message.edit(embed=embed, attachments=[file])
+                self.channel_states[channel_id][interval]['last_scheduled_update'] = datetime.now()
+                consecutive_failures = 0
 
             except discord.NotFound:
                 logger.error(f"Message not found in channel {channel_id} interval {interval}s, stopping")

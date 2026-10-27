@@ -35,7 +35,8 @@ def generate_table_image(table_data: str, session_name: str = "UNKNOWN", weight:
     """Generate high-definition table image from VWAP scanner text data."""
     parsed_data = parse_table_data(table_data)
     if not parsed_data:
-        return generate_error_image("No data available")
+        logger.info("VWAP table skipped: scanner returned no rows")
+        return None
 
     current_rankings = [(row[1], int(row[0])) for row in parsed_data]
 
