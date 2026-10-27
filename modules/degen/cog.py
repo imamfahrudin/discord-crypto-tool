@@ -229,7 +229,9 @@ class DegenCog(commands.Cog):
 
         if interaction.response.is_done():
             return
-        await interaction.response.defer(ephemeral=not is_authorized)
+        # thinking=True is deferReply: a new message. The token embed stays as posted.
+        # A plain defer() on a button would edit that original message instead.
+        await interaction.response.defer(ephemeral=not is_authorized, thinking=True)
 
         try:
             current_data = await fetch_token_data(self.session, contract_address)
