@@ -44,6 +44,7 @@ class CryptoBot(commands.Bot):
             "modules.forex",
             "modules.degen",
             "modules.session",
+            "modules.news",
             "modules.dispatcher",   # owns !start / !stop — load last
         ]
 
@@ -76,7 +77,7 @@ class CryptoBot(commands.Bot):
                 except Exception as e:
                     logger.error(f"❌ Error in {cog_name}.on_bot_ready: {e}")
 
-        logger.info("🚀 All systems operational! Screening, VWAP, Forex, Degen, and Session modules ready.")
+        logger.info("🚀 All systems operational! Screening, VWAP, Forex, Degen, Session, and News modules ready.")
 
     async def on_message(self, message: discord.Message):
         """

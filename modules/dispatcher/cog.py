@@ -6,6 +6,7 @@ Routing table:
     vwap    → VwapCog.start_in_channel / VwapCog.stop_in_channel
     forex   → ForexCog.start_in_channel / ForexCog.stop_in_channel
     session → SessionCog.start_in_channel / SessionCog.stop_in_channel
+    news    → NewsCog.start_in_channel / NewsCog.stop_in_channel
 
 Usage examples:
     !start vwap     — start VWAP scanner in current channel
@@ -14,6 +15,8 @@ Usage examples:
     !stop forex     — stop  Forex Factory notifier in current channel
     !start session  — start trading-session alerts in current channel
     !stop session   — stop  trading-session alerts
+    !start news     — start Bitcoinist AI summaries in current channel
+    !stop news      — stop  Bitcoinist AI summaries
     !start          — shows usage hint (no feature specified)
     !start unknown  — shows usage hint (unknown feature)
 """
@@ -32,18 +35,21 @@ FEATURE_MAP = {
     "vwap":    ("VwapCog",    "start_in_channel", "stop_in_channel"),
     "forex":   ("ForexCog",   "start_in_channel", "stop_in_channel"),
     "session": ("SessionCog", "start_in_channel", "stop_in_channel"),
+    "news":    ("NewsCog",    "start_in_channel", "stop_in_channel"),
 }
 
 USAGE_HINT = (
     "⚠️ **Usage:** `!start <feature>` or `!stop <feature>`\n"
-    "Available features: `vwap`, `forex`, `session`\n\n"
+    "Available features: `vwap`, `forex`, `session`, `news`\n\n"
     "**Examples:**\n"
     "• `!start vwap`    — start live VWAP scanner\n"
     "• `!stop vwap`     — stop  live VWAP scanner\n"
     "• `!start forex`   — start Forex Factory notifier\n"
     "• `!stop forex`    — stop  Forex Factory notifier\n"
     "• `!start session` — start trading-session alerts in this channel\n"
-    "• `!stop session`  — stop  trading-session alerts"
+    "• `!stop session`  — stop  trading-session alerts\n"
+    "• `!start news`    — start Bitcoinist AI summaries in this channel\n"
+    "• `!stop news`     — stop  Bitcoinist AI summaries"
 )
 
 
@@ -103,7 +109,7 @@ class DispatcherCog(commands.Cog):
         Start a bot feature in this channel.
 
         Usage: !start <feature>
-        Features: vwap, forex, session
+        Features: vwap, forex, session, news
         """
         await self._dispatch(ctx, "start", feature)
 
@@ -113,6 +119,6 @@ class DispatcherCog(commands.Cog):
         Stop a bot feature in this channel.
 
         Usage: !stop <feature>
-        Features: vwap, forex, session
+        Features: vwap, forex, session, news
         """
         await self._dispatch(ctx, "stop", feature)

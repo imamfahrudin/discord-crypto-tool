@@ -1,0 +1,11 @@
+Summarize this news article in Indonesian with the following exact format:
+
+**Ringkasan:**
+> A brief one-paragraph summary that captures the essence of the news.
+
+**Poin utama:**
+- First main point
+- Second main point
+- And so on (at least 3-5 key points)
+
+Do not add a title or any other extra text. Just provide the summary and main points. Article content: {content}

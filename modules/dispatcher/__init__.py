@@ -7,6 +7,7 @@ Supported features:
     vwap     — VWAP live-updating scanner
     forex    — Forex Factory daily calendar notifier
     session  — trading-session open alerts
+    news     — Bitcoinist AI RSS summaries
 """
 
 from .cog import DispatcherCog

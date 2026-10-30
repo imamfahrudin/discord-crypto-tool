@@ -378,7 +378,7 @@ class ScreeningCog(commands.Cog):
 
         parts = content.split()
         first_part = parts[0].lower()
-        if first_part in ('scan', 'signal', 'coinlist', 'help', 'start', 'stop', 'session', 'health', 'forex'):
+        if first_part in ('scan', 'signal', 'coinlist', 'help', 'start', 'stop', 'session', 'health', 'forex', 'news'):
             await self.send_error(
                 message,
                 f"⚠️ Perintah `${first_part}` tidak menggunakan prefix `$`. Gunakan `!{first_part}` atau `/help`."
@@ -768,7 +768,7 @@ class ScreeningCog(commands.Cog):
         """Unified complete help command for all features."""
         embed = discord.Embed(
             title="🤖💎 **CRYPTO TOOL — PANDUAN LENGKAP**",
-            description="Platform Bot Terpadu untuk **Signal Screening**, **VWAP**, **Forex**, **Degen**, dan **Trading Session**!",
+            description="Platform Bot Terpadu untuk **Signal Screening**, **VWAP**, **Forex**, **Degen**, **Trading Session**, dan **Bitcoinist News**!",
             color=0x00FF88
         )
 
@@ -811,7 +811,7 @@ class ScreeningCog(commands.Cog):
                 "🔹 **Tempel contract address** — Balasan otomatis data DexScreener + chart (tanpa prefix)\n"
                 "🔹 Contoh EVM: `0x` + 40 hex. Contoh Solana: alamat base58 32–44 karakter\n"
                 "🔹 Tombol **Check Current Price**, **Refresh Price**, dan **Delete** ada di balasan itu\n"
-                "🔹 `$` dan `!` tetap milik Screening, VWAP, Forex, dan Session — tidak dipindai sebagai contract"
+                "🔹 `$` dan `!` tetap milik Screening, VWAP, Forex, Session, dan News — tidak dipindai sebagai contract"
             ),
             inline=False
         )
@@ -822,6 +822,15 @@ class ScreeningCog(commands.Cog):
                 "🔹 **`!start session`** — Channel ini jadi channel notifier, jadwal dimulai, pesan startup terkirim\n"
                 "🔹 **`!stop session`**  — Hentikan notifier dan batalkan jadwal\n"
                 "🔹 **`!session`** tetap perintah VWAP (sesi aktif + refresh), bukan notifier ini"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="📰 **Perintah Bitcoinist News**",
+            value=(
+                "🔹 **`!start news`** — Channel ini jadi channel berita, ringkasan AI langsung dikirim\n"
+                "🔹 **`!stop news`**  — Hentikan polling dan batalkan tugas latar"
             ),
             inline=False
         )
@@ -847,6 +856,7 @@ class ScreeningCog(commands.Cog):
                 "• `!start vwap` → Jalankan tabel VWAP real-time di channel\n"
                 "• `!start forex` → Aktifkan notifikasi Forex Factory harian\n"
                 "• `!start session` → Notifikasi sesi Sydney / Tokyo / London / New York\n"
+                "• `!start news` → Ringkasan AI artikel Bitcoinist di channel ini\n"
                 "• `0xabc...` → Lookup token degen (DexScreener + chart)"
             ),
             inline=False

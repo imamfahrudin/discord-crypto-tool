@@ -148,3 +148,19 @@ CHART_TIMEFRAME_HOURS = max(1, min(1000, int(os.environ.get("CHART_TIMEFRAME_HOU
 
 # In-flight degen lookups (HTTP + chart). Separate from SIGNAL_CONCURRENCY.
 DEGEN_CONCURRENCY = max(1, int(os.environ.get("DEGEN_CONCURRENCY", "2")))
+
+# ---------------------------------------------------------------------------
+# Bitcoinist AI RSS Summarizer Module Settings
+# ---------------------------------------------------------------------------
+# The standalone summarizer posted through a webhook and a footer icon.
+# Those settings are not read. This module posts with the bot.
+
+NEWS_FEED_URL = os.environ.get("NEWS_FEED_URL", "https://bitcoinist.com/feed/")
+NEWS_POLL_INTERVAL = max(30, int(os.environ.get("NEWS_POLL_INTERVAL", "300")))
+NEWS_API_URL = os.environ.get("NEWS_API_URL", "https://text.pollinations.ai/openai")
+NEWS_CONTENT = os.environ.get(
+    "NEWS_CONTENT",
+    "New article alert! 📢 Check out the summary below 👇",
+)
+NEWS_CONTENT_POSTFIX = os.environ.get("NEWS_CONTENT_POSTFIX", "")
+NEWS_REQUEST_TIMEOUT = max(5, int(os.environ.get("NEWS_REQUEST_TIMEOUT", "60")))

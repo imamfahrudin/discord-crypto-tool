@@ -1,6 +1,7 @@
 # Unified Discord Crypto Tool Dependencies
 aiohttp>=3.8.0
 discord.py>=2.3.0
+feedparser>=6.0.0
 matplotlib>=3.5.0
 mplfinance>=0.12.9b0
 pandas>=2.0.0

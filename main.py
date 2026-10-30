@@ -1,7 +1,7 @@
 """
 Unified Discord Crypto Tool - Main Entrypoint
 Runs Crypto Screening, VWAP Scanner, Forex Factory Notifier, Degen token lookup,
-and Trading Session notifications as one process.
+Trading Session notifications, and Bitcoinist AI news summaries as one process.
 """
 
 import asyncio
@@ -23,8 +23,8 @@ logger = logging.getLogger("crypto_tool.main")
 
 def main():
     logger.info("==================================================")
-    logger.info("   💎 UNIFIED DISCORD CRYPTO TOOL v2.2.0          ")
-    logger.info("   Screening + VWAP + Forex + Degen + Session     ")
+    logger.info("   💎 UNIFIED DISCORD CRYPTO TOOL v2.3.0          ")
+    logger.info("   Screening + VWAP + Forex + Degen + Session + News")
     logger.info("==================================================")
 
     if not DISCORD_TOKEN or DISCORD_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":

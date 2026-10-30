@@ -103,6 +103,24 @@ def init_database():
             )
         ''')
 
+        # 5. news_state — Bitcoinist summarizer. One row. channel_id and
+        # last_processed stay on this row and are not mixed into VWAP,
+        # Forex, or session tables. running=0 keeps the last article date
+        # so a later !start news does not repost articles already sent.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS news_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                channel_id INTEGER,
+                guild_id INTEGER,
+                running BOOLEAN NOT NULL DEFAULT 0,
+                last_processed TEXT,
+                server_name TEXT,
+                channel_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         logger.info(f"Database initialized at {DB_PATH}")
@@ -235,6 +253,50 @@ def remove_session_notifier_state():
         cursor.execute('DELETE FROM session_notifier_state WHERE id = 1')
         conn.commit()
         conn.close()
+
+
+def save_news_state(channel_id, running, last_processed=None, server_name=None, channel_name=None, guild_id=None):
+    """Save the Bitcoinist news channel and the last processed article time.
+
+    The row id is always 1. ``last_processed`` is an ISO-8601 string or None.
+    A stopped feature still keeps ``last_processed`` so articles are not resent.
+    """
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO news_state
+            (id, channel_id, guild_id, running, last_processed, server_name, channel_name, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (channel_id, guild_id, running, last_processed, server_name, channel_name))
+        conn.commit()
+        conn.close()
+
+
+def load_news_state():
+    """Load the news row whether or not the feature is running. None if absent."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT channel_id, guild_id, running, last_processed, server_name, channel_name
+            FROM news_state
+            WHERE id = 1
+        ''')
+        row = cursor.fetchone()
+        conn.close()
+
+    if row is None:
+        return None
+    channel_id, guild_id, running, last_processed, server_name, channel_name = row
+    return {
+        'channel_id': channel_id,
+        'guild_id': guild_id,
+        'running': bool(running),
+        'last_processed': last_processed,
+        'server_name': server_name,
+        'channel_name': channel_name,
+    }
 
 
 def remove_forex_channel_state(channel_id):

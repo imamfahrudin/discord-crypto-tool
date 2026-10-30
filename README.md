@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG), continuous live-updating multi-session VWAP ranking tables, Forex Factory calendar alerts, on-demand DEX token lookup, and trading-session open notifications into a single high-performance, low-RAM process.
+An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG), continuous live-updating multi-session VWAP ranking tables, Forex Factory calendar alerts, on-demand DEX token lookup, trading-session open notifications, and Bitcoinist AI news summaries into a single high-performance, low-RAM process.
 
 ---
 
@@ -19,6 +19,7 @@ Running two separate Python Discord bots consumes redundant system memory (two P
 - **`discord-forexfactory-notifier`** (Daily Forex Factory calendar posts)
 - **`discord-crypto-degen-tool`** (Paste a contract address for DexScreener data and a GeckoTerminal chart)
 - **`discord-trading-session-notifier`** (Sydney, Tokyo, London, and New York session-open alerts, posted by the bot)
+- **`discord-bitcoinist-ai-rss-summarizer`** (Bitcoinist RSS articles summarized by Pollinations and posted by the bot)
 
 ### Key Benefits
 - **50%+ Lower Memory Footprint**: Single Python process, single gateway connection, capped glibc malloc arenas (`MALLOC_ARENA_MAX=2`), shared image generator memory trimming (`malloc_trim`).
@@ -74,6 +75,13 @@ discord-crypto-tool/
 │   │   ├── cog.py            # !start session / !stop session, one channel
 │   │   └── schedule.py       # UTC windows, 06:00 UTC sync, embed content
 │   │
+│   ├── news/                 # Module: Bitcoinist AI RSS summaries
+│   │   ├── __init__.py
+│   │   ├── cog.py            # !start news / !stop news, one poll loop
+│   │   ├── feed.py           # RSS parse, Pollinations summary, embed payload
+│   │   ├── system_prompt.txt
+│   │   └── user_prompt.txt
+│   │
 │   ├── degen/                # Module: pasted contract-address lookup
 │   │   ├── __init__.py       # Cog loader setup
 │   │   ├── cog.py            # Address listener and price buttons (no prefix commands)
@@ -82,7 +90,7 @@ discord-crypto-tool/
 │   │   ├── embeds.py         # Token and price-comparison embeds
 │   │   └── utils.py
 │   │
-│   ├── dispatcher/           # !start / !stop router (vwap, forex, session) — loaded last
+│   ├── dispatcher/           # !start / !stop router (vwap, forex, session, news) — loaded last
 │   │   └── cog.py
 │   │
 │   └── vwap/                 # Module: Multi-Session VWAP Scanner
@@ -110,7 +118,8 @@ discord-crypto-tool/
 │   ├── test_screening.py     # Tests chart & signal generation without Discord
 │   ├── test_vwap.py          # Tests table image generation without Discord
 │   ├── test_degen.py         # Formatting, button ids, and degen chart without Discord
-│   └── test_session.py       # Session windows and embed content without Discord
+│   ├── test_session.py       # Session windows and embed content without Discord
+│   └── test_news.py          # Article selection, embed shape, and news_state isolation
 │
 ├── data/                     # SQLite database storage (persisted across restarts)
 └── cache/                    # Exchange pairs disk cache
@@ -194,6 +203,12 @@ discord-crypto-tool/
 | `FOOTER_TEXT` | `DO YOUR OWN RESEARCH-ALWAYS!` | Footer on degen token embeds |
 | `CHART_TIMEFRAME_HOURS` | `168` | Hourly candles requested for the degen chart (max 1000) |
 | `DEGEN_CONCURRENCY` | `2` | Simultaneous degen lookups. Independent of `SIGNAL_CONCURRENCY` |
+| `NEWS_FEED_URL` | `https://bitcoinist.com/feed/` | RSS feed polled by `!start news` |
+| `NEWS_POLL_INTERVAL` | `300` | Seconds between news checks (minimum 30) |
+| `NEWS_API_URL` | `https://text.pollinations.ai/openai` | Pollinations endpoint for the summary |
+| `NEWS_CONTENT` | `New article alert! 📢 Check out the summary below 👇` | Text above the news embed. Blank sends the embed alone |
+| `NEWS_CONTENT_POSTFIX` | *(empty)* | Text appended after the AI summary |
+| `NEWS_REQUEST_TIMEOUT` | `60` | Timeout in seconds for the summary request |
 
 ---
 
@@ -252,6 +267,17 @@ One channel at a time. `!session` is still the VWAP command.
 
 Alerts post when Sydney, Tokyo, London, or New York opens (local 09:00–18:00 or 08:00–17:00, converted to UTC). A daylight-saving check runs every day at 06:00 UTC and posts only if a window moved. Messages do not include a footer or a role mention.
 
+### 6. Bitcoinist AI News
+
+One channel. The embed keeps the original title, link, summary, image, color (`9442302`), and timestamp. There is no footer and no webhook.
+
+| Command | Example | Description |
+|---|---|---|
+| `!start news` | `!start news` | Sets this channel as the news channel, starts the poll, and checks the feed immediately |
+| `!stop news` | `!stop news` | Stops the poll and cancels its background task |
+
+The first start with an empty history posts every article currently in the feed (the original behavior when `last_processed.txt` was missing). Later checks post only articles newer than the saved time. A reboot resumes the poll when the feature was left running, and does not send the start message again.
+
 ---
 
 ## 🔄 Notes for Migrating Users
@@ -264,6 +290,7 @@ If you previously ran `discord-crypto-screening-tool` and `discord-crypto-vwap-t
 4. **Zero Conflicts**: All prefixes (`$`, `!`) and commands work exactly as they did before.
 5. **Degen bot**: Stop the old Node process. Its `TOKEN` is not read anymore — this project uses `DISCORD_TOKEN` only. Copy `PRIMARY_COLOR`, `FOOTER_TEXT`, and `CHART_TIMEFRAME_HOURS` into this `.env` if you customized them. Paste contract addresses in a normal message; `$` and `!` messages stay with screening, VWAP, Forex, and the session notifier.
 6. **Session notifier**: Stop the old webhook process. Do not copy `SERVER_1` / `SERVER_2` (webhook, name, icon, role). There is no footer and no role mention. In the channel that should receive alerts, send `!start session`. The channel id is stored in `data/bot_states.db` (`session_notifier_state`). After a reboot the schedule resumes and the startup embed is not sent again.
+7. **Bitcoinist summarizer**: Stop the old webhook process. Do not copy `DISCORD_WEBHOOK_URL` or `FOOTER_ICON_URL`. Do not point the news footer at `FOOTER_TEXT` — that variable belongs to degen. Rename `DISCORD_CONTENT` to `NEWS_CONTENT` and `CONTENT_POSTFIX` to `NEWS_CONTENT_POSTFIX`. Set `NEWS_FEED_URL` and `NEWS_POLL_INTERVAL`. In the channel that should receive articles, send `!start news`. The channel id and last article time are stored in `data/bot_states.db` (`news_state`). `last_processed.txt` is not read. After a reboot the poll resumes only if it was running, and articles at or before the saved time are not posted again.
 
 ---
 
@@ -309,11 +336,12 @@ Adding new modules (e.g., Arbitrage, News Summarizer, On-chain alerts) is modula
        "modules.forex",
        "modules.degen",
        "modules.session",
+       "modules.news",
        "modules.my_feature",  # before the dispatcher
        "modules.dispatcher",  # owns !start / !stop — keep last
    ]
    ```
-   If the feature is started and stopped with `!start` / `!stop`, add a row to `FEATURE_MAP` in `modules/dispatcher/cog.py` and keep its saved channels in a table of its own (see `forex_channel_states` and `session_notifier_state`). Do not reuse `channel_states`, which belongs to VWAP.
+   If the feature is started and stopped with `!start` / `!stop`, add a row to `FEATURE_MAP` in `modules/dispatcher/cog.py` and keep its saved channels in a table of its own (see `forex_channel_states`, `session_notifier_state`, and `news_state`). Do not reuse `channel_states`, which belongs to VWAP.
 
    The bot loads the extension, and slash commands sync on startup.
 
