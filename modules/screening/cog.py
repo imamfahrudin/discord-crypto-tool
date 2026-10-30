@@ -768,7 +768,7 @@ class ScreeningCog(commands.Cog):
         """Unified complete help command for all features."""
         embed = discord.Embed(
             title="🤖💎 **CRYPTO TOOL — PANDUAN LENGKAP**",
-            description="Platform Bot Terpadu untuk **Signal Screening**, **VWAP**, **Forex**, dan **Degen token lookup**!",
+            description="Platform Bot Terpadu untuk **Signal Screening**, **VWAP**, **Forex**, **Degen**, dan **Trading Session**!",
             color=0x00FF88
         )
 
@@ -811,7 +811,17 @@ class ScreeningCog(commands.Cog):
                 "🔹 **Tempel contract address** — Balasan otomatis data DexScreener + chart (tanpa prefix)\n"
                 "🔹 Contoh EVM: `0x` + 40 hex. Contoh Solana: alamat base58 32–44 karakter\n"
                 "🔹 Tombol **Check Current Price**, **Refresh Price**, dan **Delete** ada di balasan itu\n"
-                "🔹 `$` dan `!` tetap milik Screening, VWAP, dan Forex — tidak dipindai sebagai contract"
+                "🔹 `$` dan `!` tetap milik Screening, VWAP, Forex, dan Session — tidak dipindai sebagai contract"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🕐 **Perintah Trading Session Notifier**",
+            value=(
+                "🔹 **`!start session`** — Channel ini jadi channel notifier, jadwal dimulai, pesan startup terkirim\n"
+                "🔹 **`!stop session`**  — Hentikan notifier dan batalkan jadwal\n"
+                "🔹 **`!session`** tetap perintah VWAP (sesi aktif + refresh), bukan notifier ini"
             ),
             inline=False
         )
@@ -836,6 +846,7 @@ class ScreeningCog(commands.Cog):
                 "• `!scan BTC ETH SOL` → Scan 3 koin terbaik\n"
                 "• `!start vwap` → Jalankan tabel VWAP real-time di channel\n"
                 "• `!start forex` → Aktifkan notifikasi Forex Factory harian\n"
+                "• `!start session` → Notifikasi sesi Sydney / Tokyo / London / New York\n"
                 "• `0xabc...` → Lookup token degen (DexScreener + chart)"
             ),
             inline=False

@@ -88,6 +88,21 @@ def init_database():
             )
         ''')
 
+        # 4. session_notifier_state — the single channel for trading-session
+        # alerts. Separate from channel_states (VWAP) and forex_channel_states.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS session_notifier_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                channel_id INTEGER NOT NULL,
+                guild_id INTEGER,
+                running BOOLEAN NOT NULL DEFAULT 1,
+                server_name TEXT,
+                channel_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         logger.info(f"Database initialized at {DB_PATH}")
@@ -171,6 +186,55 @@ def load_forex_channel_states():
             'channel_name': channel_name,
         }
     return states
+
+
+def save_session_notifier_state(channel_id, running, server_name=None, channel_name=None, guild_id=None):
+    """Save the single trading-session notifier channel. Row id is always 1."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO session_notifier_state
+            (id, channel_id, guild_id, running, server_name, channel_name, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (channel_id, guild_id, running, server_name, channel_name))
+        conn.commit()
+        conn.close()
+
+
+def load_session_notifier_state():
+    """Load the session notifier channel when it was left running. None if absent."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT channel_id, guild_id, running, server_name, channel_name
+            FROM session_notifier_state
+            WHERE id = 1 AND running = 1
+        ''')
+        row = cursor.fetchone()
+        conn.close()
+
+    if row is None:
+        return None
+    channel_id, guild_id, running, server_name, channel_name = row
+    return {
+        'channel_id': channel_id,
+        'guild_id': guild_id,
+        'running': bool(running),
+        'server_name': server_name,
+        'channel_name': channel_name,
+    }
+
+
+def remove_session_notifier_state():
+    """Forget the session notifier channel."""
+    with db_lock:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM session_notifier_state WHERE id = 1')
+        conn.commit()
+        conn.close()
 
 
 def remove_forex_channel_state(channel_id):

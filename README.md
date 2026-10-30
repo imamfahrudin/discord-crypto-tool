@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG), continuous live-updating multi-session VWAP ranking tables, Forex Factory calendar alerts, and on-demand DEX token lookup into a single high-performance, low-RAM process.
+An intelligent, unified Discord bot combining real-time cryptocurrency technical analysis screening (RSI, EMA, SMC/FVG), continuous live-updating multi-session VWAP ranking tables, Forex Factory calendar alerts, on-demand DEX token lookup, and trading-session open notifications into a single high-performance, low-RAM process.
 
 ---
 
@@ -18,6 +18,7 @@ Running two separate Python Discord bots consumes redundant system memory (two P
 - **`discord-crypto-vwap-tool`** (Automated multi-session VWAP scanner tables with live Discord message editing)
 - **`discord-forexfactory-notifier`** (Daily Forex Factory calendar posts)
 - **`discord-crypto-degen-tool`** (Paste a contract address for DexScreener data and a GeckoTerminal chart)
+- **`discord-trading-session-notifier`** (Sydney, Tokyo, London, and New York session-open alerts, posted by the bot)
 
 ### Key Benefits
 - **50%+ Lower Memory Footprint**: Single Python process, single gateway connection, capped glibc malloc arenas (`MALLOC_ARENA_MAX=2`), shared image generator memory trimming (`malloc_trim`).
@@ -68,6 +69,11 @@ discord-crypto-tool/
 │   │   ├── cog.py            # !start forex / !stop forex, per-channel schedule
 │   │   └── fetcher.py
 │   │
+│   ├── session/              # Module: trading-session open alerts
+│   │   ├── __init__.py
+│   │   ├── cog.py            # !start session / !stop session, one channel
+│   │   └── schedule.py       # UTC windows, 06:00 UTC sync, embed content
+│   │
 │   ├── degen/                # Module: pasted contract-address lookup
 │   │   ├── __init__.py       # Cog loader setup
 │   │   ├── cog.py            # Address listener and price buttons (no prefix commands)
@@ -76,7 +82,7 @@ discord-crypto-tool/
 │   │   ├── embeds.py         # Token and price-comparison embeds
 │   │   └── utils.py
 │   │
-│   ├── dispatcher/           # !start / !stop router (vwap, forex) — loaded last
+│   ├── dispatcher/           # !start / !stop router (vwap, forex, session) — loaded last
 │   │   └── cog.py
 │   │
 │   └── vwap/                 # Module: Multi-Session VWAP Scanner
@@ -103,7 +109,8 @@ discord-crypto-tool/
 ├── tests/                    # Offline verification test suite
 │   ├── test_screening.py     # Tests chart & signal generation without Discord
 │   ├── test_vwap.py          # Tests table image generation without Discord
-│   └── test_degen.py         # Formatting, button ids, and degen chart without Discord
+│   ├── test_degen.py         # Formatting, button ids, and degen chart without Discord
+│   └── test_session.py       # Session windows and embed content without Discord
 │
 ├── data/                     # SQLite database storage (persisted across restarts)
 └── cache/                    # Exchange pairs disk cache
@@ -234,6 +241,17 @@ Degen has no prefix command. Paste a contract address in a normal message (not a
 | **Delete** | Button on the comparison | Requester only. Deletes the comparison message |
 | **View on DexScreener** | Link button | Opens the pair on DexScreener |
 
+### 5. Trading Session Notifier
+
+One channel at a time. `!session` is still the VWAP command.
+
+| Command | Example | Description |
+|---|---|---|
+| `!start session` | `!start session` | Sets this channel as the notifier channel, starts the schedule, and posts the startup embed |
+| `!stop session` | `!stop session` | Stops the notifier and cancels its scheduled tasks |
+
+Alerts post when Sydney, Tokyo, London, or New York opens (local 09:00–18:00 or 08:00–17:00, converted to UTC). A daylight-saving check runs every day at 06:00 UTC and posts only if a window moved. Messages do not include a footer or a role mention.
+
 ---
 
 ## 🔄 Notes for Migrating Users
@@ -244,7 +262,8 @@ If you previously ran `discord-crypto-screening-tool` and `discord-crypto-vwap-t
 2. **Discord Application Intents**: Make sure **Message Content Intent** is toggled ON in the [Discord Developer Portal](https://discord.com/developers/applications).
 3. **Old Channels**: When running `!start`, the bot will begin updating in your current channel and record the state in `data/bot_states.db`.
 4. **Zero Conflicts**: All prefixes (`$`, `!`) and commands work exactly as they did before.
-5. **Degen bot**: Stop the old Node process. Its `TOKEN` is not read anymore — this project uses `DISCORD_TOKEN` only. Copy `PRIMARY_COLOR`, `FOOTER_TEXT`, and `CHART_TIMEFRAME_HOURS` into this `.env` if you customized them. Paste contract addresses in a normal message; `$` and `!` messages stay with screening, VWAP, and Forex.
+5. **Degen bot**: Stop the old Node process. Its `TOKEN` is not read anymore — this project uses `DISCORD_TOKEN` only. Copy `PRIMARY_COLOR`, `FOOTER_TEXT`, and `CHART_TIMEFRAME_HOURS` into this `.env` if you customized them. Paste contract addresses in a normal message; `$` and `!` messages stay with screening, VWAP, Forex, and the session notifier.
+6. **Session notifier**: Stop the old webhook process. Do not copy `SERVER_1` / `SERVER_2` (webhook, name, icon, role). There is no footer and no role mention. In the channel that should receive alerts, send `!start session`. The channel id is stored in `data/bot_states.db` (`session_notifier_state`). After a reboot the schedule resumes and the startup embed is not sent again.
 
 ---
 
@@ -289,11 +308,12 @@ Adding new modules (e.g., Arbitrage, News Summarizer, On-chain alerts) is modula
        "modules.vwap",
        "modules.forex",
        "modules.degen",
+       "modules.session",
        "modules.my_feature",  # before the dispatcher
        "modules.dispatcher",  # owns !start / !stop — keep last
    ]
    ```
-   If the feature is started and stopped per channel, add a row to `FEATURE_MAP` in `modules/dispatcher/cog.py` and keep its saved channels in a table of its own (see `forex_channel_states`). Do not reuse `channel_states`, which belongs to VWAP.
+   If the feature is started and stopped with `!start` / `!stop`, add a row to `FEATURE_MAP` in `modules/dispatcher/cog.py` and keep its saved channels in a table of its own (see `forex_channel_states` and `session_notifier_state`). Do not reuse `channel_states`, which belongs to VWAP.
 
    The bot loads the extension, and slash commands sync on startup.
 

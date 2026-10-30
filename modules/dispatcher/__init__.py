@@ -4,8 +4,9 @@ Provides the unified !start <feature> / !stop <feature> prefix commands and
 routes them to the correct feature cog.
 
 Supported features:
-    vwap   — VWAP live-updating scanner
-    forex  — Forex Factory daily calendar notifier
+    vwap     — VWAP live-updating scanner
+    forex    — Forex Factory daily calendar notifier
+    session  — trading-session open alerts
 """
 
 from .cog import DispatcherCog

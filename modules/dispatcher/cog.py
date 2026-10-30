@@ -3,16 +3,19 @@ Dispatcher Cog for discord-crypto-tool.
 
 Owns the unified !start <feature> and !stop <feature> prefix commands.
 Routing table:
-    vwap  → VwapCog.start_in_channel / VwapCog.stop_in_channel
-    forex → ForexCog.start_in_channel / ForexCog.stop_in_channel
+    vwap    → VwapCog.start_in_channel / VwapCog.stop_in_channel
+    forex   → ForexCog.start_in_channel / ForexCog.stop_in_channel
+    session → SessionCog.start_in_channel / SessionCog.stop_in_channel
 
 Usage examples:
-    !start vwap    — start VWAP scanner in current channel
-    !stop vwap     — stop  VWAP scanner in current channel
-    !start forex   — start Forex Factory notifier in current channel
-    !stop forex    — stop  Forex Factory notifier in current channel
-    !start         — shows usage hint (no feature specified)
-    !start unknown — shows usage hint (unknown feature)
+    !start vwap     — start VWAP scanner in current channel
+    !stop vwap      — stop  VWAP scanner in current channel
+    !start forex    — start Forex Factory notifier in current channel
+    !stop forex     — stop  Forex Factory notifier in current channel
+    !start session  — start trading-session alerts in current channel
+    !stop session   — stop  trading-session alerts
+    !start          — shows usage hint (no feature specified)
+    !start unknown  — shows usage hint (unknown feature)
 """
 
 from __future__ import annotations
@@ -26,18 +29,21 @@ logger = logging.getLogger("crypto_tool.dispatcher")
 
 # Map feature name → (cog_name, start_method, stop_method)
 FEATURE_MAP = {
-    "vwap":  ("VwapCog",  "start_in_channel", "stop_in_channel"),
-    "forex": ("ForexCog", "start_in_channel", "stop_in_channel"),
+    "vwap":    ("VwapCog",    "start_in_channel", "stop_in_channel"),
+    "forex":   ("ForexCog",   "start_in_channel", "stop_in_channel"),
+    "session": ("SessionCog", "start_in_channel", "stop_in_channel"),
 }
 
 USAGE_HINT = (
     "⚠️ **Usage:** `!start <feature>` or `!stop <feature>`\n"
-    "Available features: `vwap`, `forex`\n\n"
+    "Available features: `vwap`, `forex`, `session`\n\n"
     "**Examples:**\n"
-    "• `!start vwap`  — start live VWAP scanner\n"
-    "• `!stop vwap`   — stop  live VWAP scanner\n"
-    "• `!start forex` — start Forex Factory notifier\n"
-    "• `!stop forex`  — stop  Forex Factory notifier"
+    "• `!start vwap`    — start live VWAP scanner\n"
+    "• `!stop vwap`     — stop  live VWAP scanner\n"
+    "• `!start forex`   — start Forex Factory notifier\n"
+    "• `!stop forex`    — stop  Forex Factory notifier\n"
+    "• `!start session` — start trading-session alerts in this channel\n"
+    "• `!stop session`  — stop  trading-session alerts"
 )
 
 
@@ -97,7 +103,7 @@ class DispatcherCog(commands.Cog):
         Start a bot feature in this channel.
 
         Usage: !start <feature>
-        Features: vwap, forex
+        Features: vwap, forex, session
         """
         await self._dispatch(ctx, "start", feature)
 
@@ -107,6 +113,6 @@ class DispatcherCog(commands.Cog):
         Stop a bot feature in this channel.
 
         Usage: !stop <feature>
-        Features: vwap, forex
+        Features: vwap, forex, session
         """
         await self._dispatch(ctx, "stop", feature)
